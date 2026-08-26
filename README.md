@@ -42,6 +42,12 @@ The circuit documentation contains the ATmega32 peripheral allocation, hardware 
 
 **[→ Circuit Documentation](./docs/circuit/README.md)**
 
+### Software Architecture
+
+The software documentation describes the software architecture, source-code organization, MCAL and HAL layers, application logic, initialization sequence, runtime data flow, and development strategy.
+
+**[→ Software Architecture Documentation](./docs/software/README.md)**
+
 ---
 
 ## Prerequisites

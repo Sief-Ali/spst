@@ -2,6 +2,10 @@
 
 This document describes the hardware architecture of the Solar Panel Sun Tracker (SPST), including the ATmega32 peripheral allocation, sensor interfaces, actuator control, communication interfaces, and shared buses.
 
+<p align="center">
+  <img src="../assets/circuit.png" alt="Solar Panel Sun Tracker SimulIDE Circuit" width="900">
+</p>
+
 ## System Overview
 
 The SPST circuit is built around an ATmega32 microcontroller running at 16 MHz. The microcontroller interfaces with two LDR-based light sensors, a servo motor, an I²C LCD, a DS1307 RTC, status LEDs, and a UART serial terminal.

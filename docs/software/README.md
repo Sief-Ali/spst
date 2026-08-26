@@ -332,7 +332,7 @@ is implemented.
 ## 10. State Machine
 
 <p align="center">
-  <img src="../assets/FSM.png" alt="Solar Panel Sun Tracker SimulIDE Circuit" width="800">
+  <img src="../assets/FSM.png" alt="Solar Panel Sun Tracker FSM" width="800">
 </p>
 
 The final SPST application will use a finite state machine (FSM) to

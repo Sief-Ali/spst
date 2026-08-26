@@ -1,0 +1,8 @@
+CompileFlags:
+  Add:
+    - -mmcu=atmega32
+    - -DF_CPU=16000000UL
+    - -isystem
+    - /usr/lib/gcc/avr/15.2.0/include/
+  Remove: [-f*, -m*]
+  Compiler: /usr/bin/avr-gcc

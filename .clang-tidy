@@ -1,0 +1,6 @@
+# .clang-tidy
+Checks: "-*,clang-diagnostic-*,readability-*,clang-analyzer-*,performance-*,-cl\
+  ang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling,cert-*,cpp\
+  coreguidelines-*,modernize-*"
+WarningsAsErrors: ""
+HeaderFilterRegex: ".*"

@@ -1,0 +1,63 @@
+# Build directories
+build/
+cmake-build-*/
+out/
+
+# CMake and Ninja generated files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+compile_commands.json
+build.ninja
+.ninja_deps
+.ninja_log
+Makefile
+
+# AVR / embedded build outputs
+*.elf
+*.hex
+*.eep
+*.lss
+*.lst
+*.map
+*.sym
+*.bin
+
+# Object files and static libraries
+*.o
+*.obj
+*.a
+*.lib
+*.d
+
+# Tooling caches
+.cache/
+.clangd/
+.ccls-cache/
+
+# Editor and IDE local state
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+.VSCodeCounter
+
+# # SimulIDE local files
+# .simulide/
+# *.simu
+# *.workspace
+
+# Logs and temporary files
+*.log
+*.tmp
+*.temp
+
+# OS files
+.DS_Store
+Thumbs.db
+.aider*

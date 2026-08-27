@@ -10,12 +10,14 @@ set (MAIN_SRC_PATH  "${MAIN_MODULE_PATH}" )
 
 set (UTILS_MODULE_PATH "${MAIN_SRC_PATH}/utils")
 set (MCAL_MODULE_PATH "${MAIN_SRC_PATH}/MCAL")
+set (HAL_MODULE_PATH "${MAIN_SRC_PATH}/HAL")
 # set (app_MODULE_PATH  "${MAIN_MODULE_PATH}/app" )
 
 file (GLOB MAIN_SOURCE_FILE "${MAIN_SRC_PATH}/main.c")
 
 add_subdirectory("${UTILS_MODULE_PATH}")
 add_subdirectory("${MCAL_MODULE_PATH}")
+add_subdirectory("${HAL_MODULE_PATH}")
 # add_subdirectory("${app_MODULE_PATH}")
 
 #set target executable

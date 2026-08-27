@@ -18,7 +18,7 @@ file (GLOB MAIN_SOURCE_FILE "${APP_MODULE_PATH}/main.c")
 add_subdirectory("${UTILS_MODULE_PATH}")
 add_subdirectory("${MCAL_MODULE_PATH}")
 add_subdirectory("${HAL_MODULE_PATH}")
-# add_subdirectory("${APP_MODULE_PATH}")
+add_subdirectory("${APP_MODULE_PATH}")
 
 #set target executable
 add_executable (${PROJECT_NAME}.elf ${MAIN_SOURCE_FILE})
@@ -26,7 +26,7 @@ add_executable (${PROJECT_NAME}.elf ${MAIN_SOURCE_FILE})
 target_link_libraries(${PROJECT_NAME}.elf
     PRIVATE
         avr_options
-        # app
+        app
 )
 
 add_custom_command(

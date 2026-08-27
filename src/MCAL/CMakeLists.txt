@@ -1,0 +1,6 @@
+add_subdirectory(gpio)
+add_subdirectory(timer)
+add_subdirectory(ext_int)
+add_subdirectory(adc)
+add_subdirectory(uart)
+add_subdirectory(twi)

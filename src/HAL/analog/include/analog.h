@@ -5,6 +5,7 @@
 
 #include "adc.h"
 #include "adc_types.h"
+#include "analog_types.h"
 
 /* Initializes the analog HAL using the supplied ADC configuration. */
 void Analog_Init(const adc_config_t *config);
@@ -14,6 +15,12 @@ uint16_t Analog_Read(void);
 
 /* Selects an ADC input and returns one reading, or 0 if the input is invalid. */
 uint16_t Analog_ReadChannel(adc_input_t input);
+
+/* Reads both LDR inputs and stores the pair in one result object. */
+uint8_t Analog_ReadLdrs(
+	const adc_input_t *east_input,
+	const adc_input_t *west_input,
+	analog_ldr_readings_t *readings);
 
 /* Converts the project potentiometer reading into a ticket quantity from 0 to 5. */
 uint8_t Analog_Get_Quantity(void);

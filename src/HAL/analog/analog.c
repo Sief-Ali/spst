@@ -28,6 +28,33 @@ uint16_t Analog_ReadChannel(adc_input_t input)
     return ADC_Read();
 }
 
+uint8_t Analog_ReadLdrs(
+    const adc_input_t *east_input,
+    const adc_input_t *west_input,
+    analog_ldr_readings_t *readings)
+{
+    if ((east_input == NULL) || (west_input == NULL) || (readings == NULL))
+    {
+        return 0U;
+    }
+
+    if (ADC_SetInput(east_input) == 0U)
+    {
+        return 0U;
+    }
+
+    readings->east = ADC_Read();
+
+    if (ADC_SetInput(west_input) == 0U)
+    {
+        return 0U;
+    }
+
+    readings->west = ADC_Read();
+
+    return 1U;
+}
+
 uint8_t Analog_Get_Quantity(void) {
   uint16_t pot_value = ADC_Read();
   

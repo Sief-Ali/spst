@@ -11,9 +11,9 @@ target_link_libraries(board
     PUBLIC
         avr_options
         utils
-        btn
         led
         adc
         analog
         twi
+        pwm_driver
 )

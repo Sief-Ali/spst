@@ -84,3 +84,13 @@ twi_config_t board_twi_config =
     .clock = 100000UL,
     .prescaler = TWI_PRESCALER_1
 };
+
+/* =========================
+ *  Servo PWM
+ * ========================= */
+pwm_config_t servo_pwm_config = {
+    .timer = TIMER_1,
+    .channel = TIMER_COMPARE_A,
+    .mode = PWM_MODE_FAST,
+    .frequency_hz = 50U
+};

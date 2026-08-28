@@ -31,6 +31,7 @@ target_link_libraries(${PROJECT_NAME}.elf
         app
         board
         logger
+        servo
 )
 
 add_custom_command(

@@ -89,13 +89,6 @@ twi_config_t board_twi_config =
 /* =========================
  *  Servo PWM
  * ========================= */
-const pwm_config_t servo_pwm_config = {
-    .timer = TIMER_1,
-    .channel = TIMER_COMPARE_A,
-    .mode = PWM_MODE_FAST,
-    .frequency_hz = 50U
-};
-
 /* =========================
  *  Servo
  * ========================= */
@@ -104,11 +97,19 @@ const servo_config_t servo_config = {
     .min_angle = 0U,
     .max_angle = 180U,
     .initial_angle = 90U,
-    .min_pulse_us = 544U,
-    .max_pulse_us = 2400U,
-    .pwm = servo_pwm_config
+    .min_pulse_us = 1000U,
+    .max_pulse_us = 2000U,
+    .pwm =
+    {
+        .timer = TIMER_1,
+        .channel = TIMER_COMPARE_A,
+        .mode = PWM_MODE_FAST,
+        .frequency_hz = 50U
+    }
 };
 
 servo_t servo = {
-    .config = &servo_config
+    .config = &servo_config,
+    .current_angle = 0U,
+    .initialized = 0U
 };

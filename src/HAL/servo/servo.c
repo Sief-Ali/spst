@@ -46,9 +46,16 @@ static void Servo_SetPulseUs(
 void Servo_Init(
     servo_t *servo)
 {
-    const servo_config_t *config = servo->config;
+    const servo_config_t *config;
 
-    if ((servo == NULL) || (config == NULL))
+    if (servo == NULL)
+    {
+        return;
+    }
+
+    config = servo->config;
+
+    if (config == NULL)
     {
         return;
     }
@@ -56,7 +63,6 @@ void Servo_Init(
     GPIO_InitPin(config->pin);
     PWM_Init(&config->pwm);
 
-    servo->pin = config->pin;
     servo->config = config;
     servo->current_angle = config->initial_angle;
     servo->initialized = 1U;

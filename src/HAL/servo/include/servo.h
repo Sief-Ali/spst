@@ -24,7 +24,6 @@ typedef struct
 
 typedef struct
 {
-    gpio_pin_t pin;
     const servo_config_t *config;
     uint8_t current_angle;
     uint8_t initialized;

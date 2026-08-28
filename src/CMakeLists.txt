@@ -30,6 +30,7 @@ target_link_libraries(${PROJECT_NAME}.elf
         avr_options
         app
         board
+        logger
 )
 
 add_custom_command(

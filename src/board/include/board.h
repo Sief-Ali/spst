@@ -45,7 +45,7 @@ extern adc_config_t west_ldr_adc_config;
 
 extern const pwm_config_t servo_pwm_config;
 
-extern servo_config_t servo_config;
+extern const servo_config_t servo_config;
 extern servo_t servo;
 
 

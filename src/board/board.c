@@ -1,5 +1,6 @@
 #include "board.h"
 
+
 /* =========================
  * LEDs
  * ========================= */
@@ -88,9 +89,26 @@ twi_config_t board_twi_config =
 /* =========================
  *  Servo PWM
  * ========================= */
-pwm_config_t servo_pwm_config = {
+const pwm_config_t servo_pwm_config = {
     .timer = TIMER_1,
     .channel = TIMER_COMPARE_A,
     .mode = PWM_MODE_FAST,
     .frequency_hz = 50U
+};
+
+/* =========================
+ *  Servo
+ * ========================= */
+const servo_config_t servo_config = {
+    .pin = SERVO_PIN,
+    .min_angle = 0U,
+    .max_angle = 180U,
+    .initial_angle = 90U,
+    .min_pulse_us = 544U,
+    .max_pulse_us = 2400U,
+    .pwm = servo_pwm_config
+};
+
+servo_t servo = {
+    .config = &servo_config
 };

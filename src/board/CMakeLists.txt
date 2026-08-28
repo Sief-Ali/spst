@@ -16,4 +16,5 @@ target_link_libraries(board
         analog
         twi
         pwm_driver
+        servo
 )

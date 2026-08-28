@@ -6,6 +6,7 @@
 #include "adc_types.h"
 #include "pwm_driver.h"
 #include "gpio.h"
+#include "servo.h"
 
 /* =========================
  * Status LEDs
@@ -42,7 +43,10 @@ extern adc_config_t west_ldr_adc_config;
 
 #define SERVO_PIN   GPIO_PIN(D, 5, GPIO_OUT)
 
-extern pwm_config_t servo_pwm_config;
+extern const pwm_config_t servo_pwm_config;
+
+extern servo_config_t servo_config;
+extern servo_t servo;
 
 
 /* =========================

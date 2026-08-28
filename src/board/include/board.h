@@ -2,8 +2,8 @@
 #define BOARD_H
 
 #include "led.h"
-#include "lcd.h"
-#include "uart.h"
+#include "twi.h"
+#include "adc_types.h"
 
 /* =========================
  * Status LEDs

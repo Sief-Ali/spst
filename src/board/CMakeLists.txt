@@ -16,5 +16,4 @@ target_link_libraries(board
         adc
         analog
         twi
-        servo 
 )

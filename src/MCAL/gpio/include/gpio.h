@@ -32,8 +32,7 @@ typedef struct {
     uint8_t bit;
 } gpio_pin_t;
 
-#define GPIO_PIN(PORT, BIT, DIR) \
-    ((gpio_pin_t){GPIO_PORT_##PORT, DIR, P##PORT##BIT})
+#define GPIO_PIN(PORT, BIT, DIR) { GPIO_PORT_##PORT, DIR, P##PORT##BIT }
 
 void GPIO_InitPin_WithPullup(gpio_pin_t, pullup_state_t);
 void GPIO_InitPin(gpio_pin_t);

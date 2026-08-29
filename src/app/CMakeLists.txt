@@ -18,4 +18,5 @@ target_link_libraries(app
     lcd
     eeprom
     led
+    rtc
 )

@@ -10,6 +10,7 @@
 #include "lcd_config.h"
 #include "eeprom.h"
 #include "led.h"
+#include "rtc.h"
 
 #define EEPROM_TEST_ADDRESS 0U
 #define EEPROM_TEST_VALUE   0xA5U
@@ -80,6 +81,28 @@ static void APP_TestServo(uint8_t angle)
     _delay_ms(2000);
 }
 
+static void APP_TestRtc(void)
+{
+    rtc_time_t time;
+    char message[32];
+
+    if (RTC_ReadTime(&time) == RTC_STATUS_OK)
+    {
+        snprintf(
+            message,
+            sizeof(message),
+            "RTC: %02u:%02u:%02u",
+            time.hours,
+            time.minutes,
+            time.seconds);
+        Logger_Log(LOG_INFO, message);
+    }
+    else
+    {
+        Logger_Log(LOG_ERROR, "RTC read failed");
+    }
+}
+
 void APP_Init(void)
 {
     Logger_Log(
@@ -88,6 +111,11 @@ void APP_Init(void)
 
     APP_TestEeprom();
     APP_TestLeds();
+
+    if (RTC_Init() != RTC_STATUS_OK)
+    {
+        Logger_Log(LOG_ERROR, "RTC init failed");
+    }
 
     LCD_Init(&lcd_display);
     LCD_Clear(&lcd_display);
@@ -104,6 +132,7 @@ void APP_Run(void)
     
       while (1)
       {
+          APP_TestRtc();
           APP_TestLeds();
           APP_TestServo(0U);
           APP_TestServo(90U);

@@ -14,4 +14,8 @@ target_link_libraries(app
     logger
     analog
     board
+    servo
+    lcd
+    eeprom
+    led
 )

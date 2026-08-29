@@ -1,4 +1,5 @@
 add_subdirectory(logger)
+add_subdirectory(tracker)
 
 add_library(app STATIC
     app.c
@@ -19,4 +20,5 @@ target_link_libraries(app
     eeprom
     led
     rtc
+    tracker
 )

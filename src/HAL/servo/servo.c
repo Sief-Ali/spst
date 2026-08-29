@@ -2,8 +2,21 @@
 
 #include "servo.h"
 
+#include <avr/io.h>
 #include <stddef.h>
 
+#ifndef F_CPU
+#define F_CPU 16000000UL
+#endif
+
+/* Timer1 servo mode:
+ * Fast PWM with TOP = ICR1, prescaler = 8.
+ * For F_CPU = 16 MHz:
+ *   frequency = F_CPU / (8 * (1 + ICR1))
+ *   set ICR1 = 39999 to get 50 Hz exactly.
+ */
+#define SERVO_TIMER1_TOP 39999U
+#define SERVO_TIMER1_PRESCALER 8U
 
 static uint16_t Servo_AngleToPulseUs(
     const servo_config_t *config,
@@ -14,9 +27,7 @@ static uint16_t Servo_AngleToPulseUs(
     uint16_t angle_offset;
 
     angle_range = (uint16_t)(config->max_angle - config->min_angle);
-    pulse_range = (uint16_t)(
-        config->max_pulse_us - config->min_pulse_us);
-
+    pulse_range = (uint16_t)(config->max_pulse_us - config->min_pulse_us);
     angle_offset = (uint16_t)(angle - config->min_angle);
 
     return (uint16_t)(
@@ -24,23 +35,52 @@ static uint16_t Servo_AngleToPulseUs(
         (((uint32_t)angle_offset * pulse_range) / angle_range));
 }
 
+static uint16_t Servo_PulseUsToTicks(uint16_t pulse_us)
+{
+    uint32_t ticks;
+
+    /* Timer1 tick time with prescaler=8: F_CPU / 8 = 2 MHz => 0.5 us/tick.
+     * So pulse ticks = pulse_us * 2.
+     */
+    ticks = ((uint32_t)pulse_us * (F_CPU / 1000000UL)) / SERVO_TIMER1_PRESCALER;
+
+    return (uint16_t)ticks;
+}
+
+static void Servo_ConfigureTimer1(void)
+{
+    /* Fast PWM, TOP = ICR1, non-inverted output on OC1A.
+     * WGM13:0 = 1110 (mode 14)
+     * COM1A1:0 = 10 (clear on compare match, set at BOTTOM)
+     * CS11 = 1 => prescaler /8
+     */
+    TCCR1A = (1U << COM1A1) | (1U << WGM11);
+    TCCR1B = (1U << WGM13) | (1U << WGM12) | (1U << CS11);
+
+    ICR1 = SERVO_TIMER1_TOP;
+    OCR1A = 3000U; /* 1.5 ms at 0.5 us/tick */
+    TCNT1 = 0U;
+}
+
 static void Servo_SetPulseUs(
     servo_t *servo,
     uint16_t pulse_us)
 {
     const servo_config_t *config = servo->config;
-    uint32_t period_us;
-    uint8_t duty_percent;
+    uint16_t compare_ticks;
 
-    period_us = 1000000UL / config->pwm.frequency_hz;
+    if (pulse_us < config->min_pulse_us)
+    {
+        pulse_us = config->min_pulse_us;
+    }
 
-    duty_percent = (uint8_t)(
-        ((uint32_t)pulse_us * 100UL) / period_us);
+    if (pulse_us > config->max_pulse_us)
+    {
+        pulse_us = config->max_pulse_us;
+    }
 
-    PWM_SetDutyCycle(
-        config->pwm.timer,
-        config->pwm.channel,
-        duty_percent);
+    compare_ticks = Servo_PulseUsToTicks(pulse_us);
+    OCR1A = compare_ticks;
 }
 
 void Servo_Init(
@@ -61,7 +101,7 @@ void Servo_Init(
     }
 
     GPIO_InitPin(config->pin);
-    PWM_Init(&config->pwm);
+    Servo_ConfigureTimer1();
 
     servo->config = config;
     servo->current_angle = config->initial_angle;
@@ -82,10 +122,6 @@ void Servo_SetAngle(
         return;
     }
 
-    /*
-     * The configuration would need to be associated with the servo
-     * object, or stored privately by the module.
-     */
     config = servo->config;
 
     if (angle < config->min_angle)
@@ -99,7 +135,6 @@ void Servo_SetAngle(
     }
 
     pulse_us = Servo_AngleToPulseUs(config, angle);
-
     Servo_SetPulseUs(servo, pulse_us);
 
     servo->current_angle = angle;

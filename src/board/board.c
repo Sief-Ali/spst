@@ -94,9 +94,9 @@ twi_config_t board_twi_config =
  * ========================= */
 const servo_config_t servo_config = {
     .pin = SERVO_PIN,
-    .min_angle = 0U,
-    .max_angle = 180U,
-    .initial_angle = 90U,
+    .min_angle = 15U,
+    .max_angle = 165U,
+    .initial_angle = 20U,
     .min_pulse_us = 1000U,
     .max_pulse_us = 2000U,
     .pwm =

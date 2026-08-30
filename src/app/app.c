@@ -106,6 +106,25 @@ static const char *APP_DisplayStateName(controller_state_t state)
     }
 }
 
+/* Avoid snprintf() in the Display task. AVR libc formatting needs much more
+ * stack than is available in this RAM-constrained FreeRTOS application. */
+static void APP_LCD_PrintUInt16(uint16_t value)
+{
+    char digits[5];
+    uint8_t count = 0U;
+
+    do {
+        digits[count] = (char)('0' + (value % 10U));
+        value /= 10U;
+        count++;
+    } while (value != 0U);
+
+    while (count > 0U) {
+        count--;
+        LCD_PrintChar(&lcd_display, digits[count]);
+    }
+}
+
 /* Producer: samples both ADC channels and sends the pair without deciding. */
 static void APP_SensorTask(void *parameters)
 {
@@ -162,8 +181,6 @@ static void APP_DisplayTask(void *parameters)
     controller_state_t last_logged_state = STATE_COUNT;
     app_status_t snapshot;
     rtc_time_t time;
-    char line1[17];
-    char line2[17];
     (void)parameters;
     for (;;) {
         if ((xTaskGetTickCount() - last_rtc_read) >= pdMS_TO_TICKS(RTC_PERIOD_MS)) {
@@ -176,13 +193,16 @@ static void APP_DisplayTask(void *parameters)
         }
         APP_CopyStatus(&snapshot);
         if (xSemaphoreTake(i2c_bus_semaphore, portMAX_DELAY) == pdTRUE) {
-            snprintf(line1, sizeof(line1), "%s A:%u", APP_DisplayStateName(snapshot.state), snapshot.angle);
-            snprintf(line2, sizeof(line2), "E:%u W:%u", snapshot.east, snapshot.west);
             LCD_Clear(&lcd_display);
             LCD_SetCursor(&lcd_display, 0U, 0U);
-            LCD_PrintString(&lcd_display, line1);
+            LCD_PrintString(&lcd_display, APP_DisplayStateName(snapshot.state));
+            LCD_PrintString(&lcd_display, " A:");
+            APP_LCD_PrintUInt16(snapshot.angle);
             LCD_SetCursor(&lcd_display, 1U, 0U);
-            LCD_PrintString(&lcd_display, line2);
+            LCD_PrintString(&lcd_display, "E:");
+            APP_LCD_PrintUInt16(snapshot.east);
+            LCD_PrintString(&lcd_display, " W:");
+            APP_LCD_PrintUInt16(snapshot.west);
             xSemaphoreGive(i2c_bus_semaphore);
         }
         APP_UpdateLeds(snapshot.state);

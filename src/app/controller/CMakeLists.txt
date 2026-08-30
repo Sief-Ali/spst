@@ -1,5 +1,6 @@
 add_library(controller STATIC
     controller.c
+    controller_types.c
 )
 
 target_include_directories(controller

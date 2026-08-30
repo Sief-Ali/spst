@@ -10,7 +10,7 @@ typedef enum
 
     STATE_NIGHT_PARKING,
 
-    STATE_CLAUDE_HOLD,
+    STATE_CLOUD_HOLD,
 
     STATE_FAULT,
 

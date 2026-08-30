@@ -12,6 +12,7 @@ set (UTILS_MODULE_PATH "${MAIN_SRC_PATH}/utils")
 set (MCAL_MODULE_PATH "${MAIN_SRC_PATH}/MCAL")
 set (HAL_MODULE_PATH "${MAIN_SRC_PATH}/HAL")
 set (BOARD_MODULE_PATH "${MAIN_SRC_PATH}/board")
+set (LIB_MODULE_PATH "${MAIN_SRC_PATH}/lib")
 set (APP_MODULE_PATH  "${MAIN_MODULE_PATH}/app" )
 
 file (GLOB MAIN_SOURCE_FILE "${APP_MODULE_PATH}/main.c")
@@ -20,6 +21,7 @@ add_subdirectory("${UTILS_MODULE_PATH}")
 add_subdirectory("${MCAL_MODULE_PATH}")
 add_subdirectory("${HAL_MODULE_PATH}")
 add_subdirectory("${BOARD_MODULE_PATH}")
+add_subdirectory("${LIB_MODULE_PATH}")
 add_subdirectory("${APP_MODULE_PATH}")
 
 #set target executable
@@ -34,6 +36,8 @@ target_link_libraries(${PROJECT_NAME}.elf
         servo
         controller
         panel
+        freertos_kernel
+        freertos_config
 )
 
 add_custom_command(

@@ -6,6 +6,8 @@
 #include "logger.h"
 #include "analog.h"
 #include "servo.h"
+#include "FreeRTOS.h"
+#include "task.h"
 
 
 /* Board LEDs initialized before the application modules start. */

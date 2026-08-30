@@ -32,6 +32,8 @@ target_link_libraries(${PROJECT_NAME}.elf
         board
         logger
         servo
+        controller
+        panel
 )
 
 add_custom_command(

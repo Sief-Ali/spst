@@ -1,5 +1,7 @@
 add_subdirectory(logger)
 add_subdirectory(tracker)
+add_subdirectory(panel)
+add_subdirectory(controller)
 
 add_library(app STATIC
     app.c
@@ -22,4 +24,6 @@ target_link_libraries(app
     led
     rtc
     tracker
+    panel
+    controller
 )

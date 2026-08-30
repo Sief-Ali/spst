@@ -54,6 +54,8 @@ uint16_t TIMER_GetMaxCount(timer_id_t timer)
 /* needed here (ClearFlag exists for the polling use case).                  */
 /* -------------------------------------------------------------------------- */
 
+/* Timer0 compare is reserved for the FreeRTOS tick. */
+#if !defined(FREERTOS_OWNS_TIMER0)
 ISR(TIMER0_OVF_vect)
 {
     TIMER_Dispatch(TIMER_0, TIMER_INTERRUPT_OVERFLOW);
@@ -63,6 +65,7 @@ ISR(TIMER0_COMP_vect)
 {
     TIMER_Dispatch(TIMER_0, TIMER_INTERRUPT_COMPARE_A);
 }
+#endif
 
 ISR(TIMER1_OVF_vect)
 {

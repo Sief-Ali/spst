@@ -58,7 +58,6 @@ static void APP_InitializeEepromConfig(void)
 static void APP_LoadRuntimeConfig(void)
 {
     APP_Config_ReadEeprom(&app_live_config);
-    Servo_SetAngle(&servo, app_live_config.east_park_angle);
 }
 
 void APP_Init(void)
@@ -73,13 +72,13 @@ void APP_Init(void)
         Logger_Log(LOG_ERROR, "RTC init failed");
     }
 
-    Panel_Init();
+    Panel_Init(
+        app_live_config.travel_limit_lower,
+        app_live_config.travel_limit_upper,
+        app_live_config.east_park_angle);
 
     Controller_Init(
         app_live_config.dead_band,
-        app_live_config.travel_limit_lower,
-        app_live_config.travel_limit_upper,
-        app_live_config.east_park_angle,
         app_live_config.cloud_entry_level,
         app_live_config.cloud_exit_level,
         app_live_config.cloud_confirmation_time_s,
@@ -156,7 +155,6 @@ void APP_Run(void)
     tracker_direction_t direction;
     controller_state_t current_state;
     uint8_t current_angle;
-    uint8_t next_angle;
     rtc_time_t current_time;
     uint32_t display_counter = 0U;
     uint32_t rtc_counter = 0U;
@@ -202,15 +200,13 @@ void APP_Run(void)
         {
             direction = Tracker_GetDirection(&readings, app_live_config.dead_band);
 
-            if ((direction == TRACKER_DIRECTION_EAST) || (direction == TRACKER_DIRECTION_WEST))
+            if (direction == TRACKER_DIRECTION_EAST)
             {
-                next_angle = Tracker_GetNextAngle(
-                    current_angle,
-                    direction,
-                    5U,
-                    app_live_config.travel_limit_lower,
-                    app_live_config.travel_limit_upper);
-                Panel_SetAngle(next_angle);
+                Panel_Move(5U, 1);
+            }
+            else if (direction == TRACKER_DIRECTION_WEST)
+            {
+                Panel_Move(5U, -1);
             }
         }
         else if (current_state == STATE_CLOUD_HOLD)

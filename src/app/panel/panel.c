@@ -1,81 +1,120 @@
 #include "panel.h"
+
 #include "servo.h"
 #include "board.h"
 
-void Panel_Init(void)
+static uint8_t panel_min_angle;
+static uint8_t panel_max_angle;
+static uint8_t panel_current_angle;
+
+static uint8_t Panel_ClampAngle(uint8_t angle)
 {
-    /* Servo already initialized in main, but can add any panel-specific setup here. */
+    if (angle < panel_min_angle)
+    {
+        return panel_min_angle;
+    }
+
+    if (angle > panel_max_angle)
+    {
+        return panel_max_angle;
+    }
+
+    return angle;
 }
 
-void Panel_Move(uint8_t step_angle, uint8_t min_angle, uint8_t max_angle, int8_t direction)
+void Panel_Init(uint8_t min_angle, uint8_t max_angle, uint8_t initial_angle)
 {
-    uint8_t current_angle;
-    int16_t new_angle_temp;
-    uint8_t new_angle;
+    Panel_SetLimits(min_angle, max_angle);
+    Panel_SetAngle(initial_angle);
+}
 
-    current_angle = Servo_GetAngle(&servo);
+void Panel_SetLimits(uint8_t min_angle, uint8_t max_angle)
+{
+    if (max_angle < min_angle)
+    {
+        uint8_t swap = min_angle;
+        min_angle = max_angle;
+        max_angle = swap;
+    }
 
-    if (direction > 0)
+    panel_min_angle = min_angle;
+    panel_max_angle = max_angle;
+    panel_current_angle = Panel_ClampAngle(panel_current_angle);
+}
+
+void Panel_Move(uint8_t step_angle, int8_t direction)
+{
+    int16_t new_angle;
+
+    if (direction == 0)
     {
-        /* Move toward higher angle (west). */
-        new_angle_temp = (int16_t)current_angle + (int16_t)step_angle;
-        if (new_angle_temp > max_angle)
-        {
-            new_angle = max_angle;
-        }
-        else
-        {
-            new_angle = (uint8_t)new_angle_temp;
-        }
-    }
-    else if (direction < 0)
-    {
-        /* Move toward lower angle (east). */
-        new_angle_temp = (int16_t)current_angle - (int16_t)step_angle;
-        if (new_angle_temp < min_angle)
-        {
-            new_angle = min_angle;
-        }
-        else
-        {
-            new_angle = (uint8_t)new_angle_temp;
-        }
-    }
-    else
-    {
-        /* No movement if direction is 0. */
         return;
     }
 
-    Servo_SetAngle(&servo, new_angle);
+    if (direction > 0)
+    {
+        new_angle = (int16_t)panel_current_angle + (int16_t)step_angle;
+    }
+    else
+    {
+        new_angle = (int16_t)panel_current_angle - (int16_t)step_angle;
+    }
+
+    if (new_angle < 0)
+    {
+        new_angle = 0;
+    }
+    else if (new_angle > 255)
+    {
+        new_angle = 255;
+    }
+
+    Panel_SetAngle((uint8_t)new_angle);
 }
 
 uint8_t Panel_GetAngle(void)
 {
-    return Servo_GetAngle(&servo);
+    return panel_current_angle;
 }
 
 void Panel_SetAngle(uint8_t angle)
 {
-    Servo_SetAngle(&servo, angle);
+    panel_current_angle = Panel_ClampAngle(angle);
+    Servo_SetAngle(&servo, panel_current_angle);
+}
+
+uint8_t Panel_GetMinAngle(void)
+{
+    return panel_min_angle;
+}
+
+uint8_t Panel_GetMaxAngle(void)
+{
+    return panel_max_angle;
 }
 
 void Panel_Park(uint8_t park_angle)
 {
-    Servo_SetAngle(&servo, park_angle);
+    Panel_SetAngle(park_angle);
 }
 
 void Panel_Hold(void)
 {
-    /* Hold just keeps the panel at its current angle; no servo command needed. */
+    /*
+     * No new servo command is required.
+     * The panel remains at its current commanded angle.
+     */
 }
 
 void Panel_Wake(void)
 {
-    /* Wake just resumes tracking from current angle; no specific action needed. */
+    /*
+     * Tracking naturally resumes from the current angle.
+     */
 }
 
-uint8_t Panel_AngleWithinLimits(uint8_t angle, uint8_t min_limit, uint8_t max_limit)
+uint8_t Panel_AngleWithinLimits(uint8_t angle)
 {
-    return (angle >= min_limit) && (angle <= max_limit);
+    return (angle >= panel_min_angle) &&
+           (angle <= panel_max_angle);
 }

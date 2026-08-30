@@ -7,9 +7,6 @@ typedef struct
     controller_state_t previous_state;
 
     uint16_t dead_band;
-    uint8_t min_angle;
-    uint8_t max_angle;
-    uint8_t park_angle;
 
     uint16_t cloud_entry_level;
     uint16_t cloud_exit_level;
@@ -26,9 +23,6 @@ static controller_state_machine_t fsm;
 
 void Controller_Init(
     uint16_t dead_band,
-    uint8_t min_angle,
-    uint8_t max_angle,
-    uint8_t park_angle,
     uint16_t cloud_entry_level,
     uint16_t cloud_exit_level,
     uint16_t cloud_confirmation_time_s,
@@ -41,9 +35,6 @@ void Controller_Init(
     fsm.previous_state = STATE_INIT;
 
     fsm.dead_band = dead_band;
-    fsm.min_angle = min_angle;
-    fsm.max_angle = max_angle;
-    fsm.park_angle = park_angle;
 
     fsm.cloud_entry_level = cloud_entry_level;
     fsm.cloud_exit_level = cloud_exit_level;

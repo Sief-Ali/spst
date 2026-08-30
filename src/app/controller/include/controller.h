@@ -9,9 +9,6 @@
 /* Initialize the controller with the current configuration and state. */
 void Controller_Init(
     uint16_t dead_band,
-    uint8_t min_angle,
-    uint8_t max_angle,
-    uint8_t park_angle,
     uint16_t cloud_entry_level,
     uint16_t cloud_exit_level,
     uint16_t cloud_confirmation_time_s,

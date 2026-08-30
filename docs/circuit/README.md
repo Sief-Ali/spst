@@ -85,8 +85,12 @@ The circuit follows the hardware requirements defined by the SPST project specif
 - ADC reference and supply connections must be correctly connected.
 - The servo must remain within the defined mechanical travel limits.
 
-## Detailed Connections
+---
 
-For the complete physical pin mapping and component connections, see:
+## Next and related documentation
 
-**[→ Detailed Circuit Connections](./connections.md)**
+- **Next:** [Detailed circuit connections](connections.md) — complete pin and
+  component mapping.
+- [Software documentation](../software/README.md) — application architecture
+  and FreeRTOS timing.
+- [Project README](../../README.md) — clone, build, and run instructions.

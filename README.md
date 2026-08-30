@@ -62,14 +62,29 @@ Install the following tools before building:
 
 ## Getting Started
 
-### Clone the Repository
+### Option 1: One-command clone (recommended)
 
 ```bash
-git clone https://github.com/Sief-Ali/spst.git
+git clone --recurse-submodules="src/lib/FreeRTOS" --shallow-submodules https://github.com/sief-ali/spst
 cd spst
 ```
 
-If you already have the repository and want the latest changes:
+This initializes only the project FreeRTOS submodule and uses shallow history
+for it, avoiding the full FreeRTOS history download.
+
+### Option 2: Initialize the submodule after a normal clone
+
+If you already cloned the project without submodules, run:
+
+```bash
+# Move into the project directory.
+cd spst
+
+# Initialize only the first-level FreeRTOS submodule with shallow history.
+git submodule update --init --depth=1 src/lib/FreeRTOS
+```
+
+To update an existing checkout of the main repository:
 
 ```bash
 git pull origin master
@@ -125,13 +140,25 @@ build/src/spst.hex
 ```text
 .
 ├── src/
-│   ├── app/
-│   ├── board/
-│   ├── hal/
-│   ├── mcal/
+│   ├── app/             # Tracker behavior, FSM, and FreeRTOS tasks
+│   ├── board/           # Board pins and shared board objects
+│   ├── HAL/             # Device-facing abstractions
+│   ├── MCAL/            # ATmega32 register-level drivers
+│   ├── lib/FreeRTOS/    # FreeRTOS Git submodule
 │   └── utils/
 ├── cmake/
 ├── docs/
 ├── simulide/
 └── CMakeLists.txt
 ```
+
+---
+
+## Next and related documentation
+
+- [Software documentation](docs/software/README.md) — application architecture,
+  FreeRTOS tasks, and supporting layers.
+- [Circuit documentation](docs/circuit/README.md) — peripheral allocation and
+  wiring requirements.
+- [Detailed circuit connections](docs/circuit/connections.md) — pin-by-pin
+  connection map.

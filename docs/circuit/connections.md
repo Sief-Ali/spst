@@ -240,6 +240,9 @@ The ATmega32 ADC supply and reference connections must also be connected correct
 
 ---
 
-## Related Documentation
+## Next and related documentation
 
-* [Circuit Design & Peripheral Allocation](./README.md)
+- **Previous:** [Circuit design and peripheral allocation](README.md).
+- [Software application architecture](../software/application.md) — how the
+  connected hardware is used by the FreeRTOS application.
+- [Project README](../../README.md) — clone, build, and SimulIDE instructions.

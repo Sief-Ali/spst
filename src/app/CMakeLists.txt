@@ -26,4 +26,6 @@ target_link_libraries(app
     tracker
     panel
     controller
+    freertos_kernel
+    freertos_config
 )

@@ -39,7 +39,7 @@ int main(void) {
     // Your code here
     APP_Init();
 
-    APP_Run();
+    APP_StartScheduler();
 
     return 0;
 }

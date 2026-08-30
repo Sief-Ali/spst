@@ -1,23 +1,48 @@
 #include "app.h"
 
 #include <stdio.h>
-#include <util/delay.h>
 
-#include "logger.h"
+#include "FreeRTOS.h"
+#include "queue.h"
+#include "semphr.h"
+#include "task.h"
+
 #include "analog.h"
-#include "board.h"
-#include "lcd.h"
-#include "lcd_config.h"
-#include "eeprom.h"
-#include "tracker.h"
-#include "led.h"
-#include "rtc.h"
 #include "app_config.h"
-#include "panel.h"
+#include "board.h"
 #include "controller.h"
 #include "controller_types.h"
+#include "eeprom.h"
+#include "lcd.h"
+#include "lcd_config.h"
+#include "led.h"
+#include "logger.h"
+#include "panel.h"
+#include "rtc.h"
+#include "tracker.h"
+
+#define SENSOR_PERIOD_MS       100U
+#define DISPLAY_PERIOD_MS      500U
+#define RTC_PERIOD_MS          1000U
+#define LDR_QUEUE_LENGTH       4U
+#define APP_TASK_STACK_WORDS   100U
+
+typedef struct { uint16_t east; uint16_t west; } app_ldr_message_t;
+
+/* The queue is the only Sensor->Control data path. Display publishes RTC time
+ * and Control publishes its result in this protected status snapshot. */
+typedef struct {
+    uint16_t east;
+    uint16_t west;
+    uint8_t angle;
+    controller_state_t state;
+    rtc_time_t time;
+} app_status_t;
 
 static app_runtime_config_t app_live_config;
+static QueueHandle_t ldr_queue;
+static SemaphoreHandle_t i2c_bus_semaphore;
+static app_status_t app_status = { 0U, 0U, 20U, STATE_INIT, { 0U, 0U, 12U } };
 
 static void APP_InitializeEepromConfig(void)
 {
@@ -25,221 +50,179 @@ static void APP_InitializeEepromConfig(void)
     char message[96];
 
     APP_Config_ReadEeprom(&config);
-
-    if (APP_Config_MatchesDefaults(&config) == 0U)
-    {
+    if (APP_Config_MatchesDefaults(&config) == 0U) {
         APP_Config_ClearRegion();
         APP_Config_WriteEeprom(APP_Config_GetDefault());
         APP_Config_ReadEeprom(&config);
-        snprintf(
-            message,
-            sizeof(message),
-            "EEPROM config initialized: dead=%u, limits=%u-%u, park=%u",
-            config.dead_band,
-            config.travel_limit_lower,
-            config.travel_limit_upper,
-            config.east_park_angle);
-        Logger_Log(LOG_INFO, message);
+        snprintf(message, sizeof(message), "EEPROM config initialized: dead=%u, limits=%u-%u, park=%u",
+                 config.dead_band, config.travel_limit_lower, config.travel_limit_upper, config.east_park_angle);
+    } else {
+        snprintf(message, sizeof(message), "EEPROM config loaded: dead=%u, limits=%u-%u, park=%u",
+                 config.dead_band, config.travel_limit_lower, config.travel_limit_upper, config.east_park_angle);
     }
-    else
-    {
-        snprintf(
-            message,
-            sizeof(message),
-            "EEPROM config loaded: dead=%u, limits=%u-%u, park=%u",
-            config.dead_band,
-            config.travel_limit_lower,
-            config.travel_limit_upper,
-            config.east_park_angle);
-        Logger_Log(LOG_INFO, message);
+    Logger_Log(LOG_INFO, message);
+}
+
+static void APP_CopyStatus(app_status_t *copy)
+{
+    taskENTER_CRITICAL(); *copy = app_status; taskEXIT_CRITICAL();
+}
+
+static void APP_PublishControl(controller_state_t state, uint16_t east, uint16_t west)
+{
+    taskENTER_CRITICAL();
+    app_status.east = east;
+    app_status.west = west;
+    app_status.angle = Panel_GetAngle();
+    app_status.state = state;
+    taskEXIT_CRITICAL();
+}
+
+static void APP_PublishTime(const rtc_time_t *time)
+{
+    taskENTER_CRITICAL(); app_status.time = *time; taskEXIT_CRITICAL();
+}
+
+static void APP_UpdateLeds(controller_state_t state)
+{
+    LED_Off(&led.ready); LED_Off(&led.processing); LED_Off(&led.error);
+    switch (state) {
+        case STATE_TRACKING: LED_On(&led.ready); break;
+        case STATE_CLOUD_HOLD:
+        case STATE_NIGHT_PARKING: LED_On(&led.processing); break;
+        case STATE_FAULT: LED_On(&led.error); break;
+        default: break;
     }
 }
 
-static void APP_LoadRuntimeConfig(void)
+static const char *APP_DisplayStateName(controller_state_t state)
 {
-    APP_Config_ReadEeprom(&app_live_config);
+    switch (state) {
+        case STATE_TRACKING: return "TRACK";
+        case STATE_NIGHT_PARKING: return "NIGHT";
+        case STATE_CLOUD_HOLD: return "CLOUD";
+        case STATE_FAULT: return "FAULT";
+        default: return "INIT";
+    }
+}
+
+/* Producer: samples both ADC channels and sends the pair without deciding. */
+static void APP_SensorTask(void *parameters)
+{
+    TickType_t last_wake = xTaskGetTickCount();
+    app_ldr_message_t message;
+    analog_ldr_readings_t readings;
+    (void)parameters;
+    for (;;) {
+        if (Analog_ReadLdrs(&east_ldr_adc_config.input, &west_ldr_adc_config.input, &readings) != 0U) {
+            message.east = readings.east;
+            message.west = readings.west;
+            (void)xQueueSend(ldr_queue, &message, portMAX_DELAY);
+        } else {
+            Logger_Log(LOG_ERROR, "Failed to read LDRs");
+        }
+        vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(SENSOR_PERIOD_MS));
+    }
+}
+
+/* Consumer: sole owner of the five-state machine and servo commands. */
+static void APP_ControlTask(void *parameters)
+{
+    app_ldr_message_t message;
+    app_status_t snapshot;
+    tracker_readings_t readings;
+    controller_state_t state;
+    tracker_direction_t direction;
+    (void)parameters;
+    for (;;) {
+        (void)xQueueReceive(ldr_queue, &message, portMAX_DELAY);
+        APP_CopyStatus(&snapshot); /* RTC time is written by Display. */
+        state = Controller_Update(message.east, message.west, snapshot.time.hours, snapshot.time.minutes);
+        readings.east = message.east;
+        readings.west = message.west;
+        if (state == STATE_TRACKING) {
+            direction = Tracker_GetDirection(&readings, app_live_config.dead_band);
+            if (direction == TRACKER_DIRECTION_EAST) Panel_Move(5U, 1);
+            else if (direction == TRACKER_DIRECTION_WEST) Panel_Move(5U, -1);
+        } else if (state == STATE_NIGHT_PARKING) {
+            Panel_Park(app_live_config.east_park_angle);
+        } else {
+            Panel_Hold();
+        }
+        APP_PublishControl(state, message.east, message.west);
+    }
+}
+
+/* Owns LCD, RTC and UART. Every LCD/RTC transaction takes the same binary
+ * semaphore, so their I2C transfers cannot interleave. */
+static void APP_DisplayTask(void *parameters)
+{
+    TickType_t last_wake = xTaskGetTickCount();
+    TickType_t last_rtc_read = last_wake - pdMS_TO_TICKS(RTC_PERIOD_MS);
+    controller_state_t last_logged_state = STATE_COUNT;
+    app_status_t snapshot;
+    rtc_time_t time;
+    char line1[17];
+    char line2[17];
+    (void)parameters;
+    for (;;) {
+        if ((xTaskGetTickCount() - last_rtc_read) >= pdMS_TO_TICKS(RTC_PERIOD_MS)) {
+            if (xSemaphoreTake(i2c_bus_semaphore, portMAX_DELAY) == pdTRUE) {
+                if (RTC_ReadTime(&time) == RTC_STATUS_OK) APP_PublishTime(&time);
+                else Logger_Log(LOG_ERROR, "RTC read failed");
+                xSemaphoreGive(i2c_bus_semaphore);
+            }
+            last_rtc_read = xTaskGetTickCount();
+        }
+        APP_CopyStatus(&snapshot);
+        if (xSemaphoreTake(i2c_bus_semaphore, portMAX_DELAY) == pdTRUE) {
+            snprintf(line1, sizeof(line1), "%s A:%u", APP_DisplayStateName(snapshot.state), snapshot.angle);
+            snprintf(line2, sizeof(line2), "E:%u W:%u", snapshot.east, snapshot.west);
+            LCD_Clear(&lcd_display);
+            LCD_SetCursor(&lcd_display, 0U, 0U);
+            LCD_PrintString(&lcd_display, line1);
+            LCD_SetCursor(&lcd_display, 1U, 0U);
+            LCD_PrintString(&lcd_display, line2);
+            xSemaphoreGive(i2c_bus_semaphore);
+        }
+        APP_UpdateLeds(snapshot.state);
+        if (snapshot.state != last_logged_state) {
+            Logger_Log(LOG_EVENT, controller_state_names[snapshot.state]);
+            last_logged_state = snapshot.state;
+        }
+        vTaskDelayUntil(&last_wake, pdMS_TO_TICKS(DISPLAY_PERIOD_MS));
+    }
 }
 
 void APP_Init(void)
 {
     Logger_Log(LOG_BOOT, "System Ready");
-
     APP_InitializeEepromConfig();
-    APP_LoadRuntimeConfig();
-
-    if (RTC_Init() != RTC_STATUS_OK)
-    {
-        Logger_Log(LOG_ERROR, "RTC init failed");
+    APP_Config_ReadEeprom(&app_live_config);
+    ldr_queue = xQueueCreate(LDR_QUEUE_LENGTH, sizeof(app_ldr_message_t));
+    i2c_bus_semaphore = xSemaphoreCreateBinary();
+    if ((ldr_queue == NULL) || (i2c_bus_semaphore == NULL)) {
+        Logger_Log(LOG_ERROR, "FreeRTOS object creation failed");
+        return;
     }
-
-    Panel_Init(
-        app_live_config.travel_limit_lower,
-        app_live_config.travel_limit_upper,
-        app_live_config.east_park_angle);
-
-    Controller_Init(
-        app_live_config.dead_band,
-        app_live_config.cloud_entry_level,
-        app_live_config.cloud_exit_level,
-        app_live_config.cloud_confirmation_time_s,
-        app_live_config.night_start_hour,
-        app_live_config.night_start_minute,
-        app_live_config.night_end_hour,
-        app_live_config.night_end_minute);
-
-    LCD_Init(&lcd_display);
-    LCD_Clear(&lcd_display);
-    LCD_SetCursor(&lcd_display, 1, 0);
-    LCD_PrintString(&lcd_display, "SPST ready");
-}
-
-static void APP_HandleStateChange(controller_state_t new_state)
-{
-    const char *state_name = controller_state_names[new_state];
-    char message[96];
-
-    snprintf(message, sizeof(message), "State change: %s", state_name);
-    Logger_Log(LOG_EVENT, message);
-}
-
-static void APP_UpdateDisplay(
-    controller_state_t state,
-    uint8_t current_angle,
-    uint16_t east_reading,
-    uint16_t west_reading)
-{
-    char line1[17];
-    char line2[17];
-    const char *state_name = controller_state_names[state];
-
-    snprintf(line1, sizeof(line1), "%s %u", state_name, current_angle);
-    LCD_Clear(&lcd_display);
-    LCD_SetCursor(&lcd_display, 0, 0);
-    LCD_PrintString(&lcd_display, line1);
-
-    snprintf(line2, sizeof(line2), "E:%u W:%u", east_reading, west_reading);
-    LCD_SetCursor(&lcd_display, 1, 0);
-    LCD_PrintString(&lcd_display, line2);
-}
-
-static void APP_UpdateLeds(controller_state_t state)
-{
-    LED_Off(&led.ready);
-    LED_Off(&led.processing);
-    LED_Off(&led.error);
-
-    switch (state)
-    {
-        case STATE_TRACKING:
-            LED_On(&led.ready);
-            break;
-
-        case STATE_CLOUD_HOLD:
-        case STATE_NIGHT_PARKING:
-            LED_On(&led.processing);
-            break;
-
-        case STATE_FAULT:
-            LED_On(&led.error);
-            break;
-
-        default:
-            break;
+    xSemaphoreGive(i2c_bus_semaphore); /* Binary semaphores start unavailable. */
+    if (xSemaphoreTake(i2c_bus_semaphore, portMAX_DELAY) == pdTRUE) {
+        if (RTC_Init() != RTC_STATUS_OK) Logger_Log(LOG_ERROR, "RTC init failed");
+        if (LCD_Init(&lcd_display) != LCD_STATUS_OK) Logger_Log(LOG_ERROR, "LCD init failed");
+        xSemaphoreGive(i2c_bus_semaphore);
     }
+    Panel_Init(app_live_config.travel_limit_lower, app_live_config.travel_limit_upper, app_live_config.east_park_angle);
+    Controller_Init(app_live_config.dead_band, app_live_config.cloud_entry_level, app_live_config.cloud_exit_level,
+                    app_live_config.cloud_confirmation_time_s, app_live_config.night_start_hour,
+                    app_live_config.night_start_minute, app_live_config.night_end_hour, app_live_config.night_end_minute);
 }
 
-void APP_Run(void)
+void APP_StartScheduler(void)
 {
-    analog_ldr_readings_t ldr_readings;
-    tracker_readings_t readings;
-    tracker_direction_t direction;
-    controller_state_t current_state;
-    uint8_t current_angle;
-    rtc_time_t current_time;
-    uint32_t display_counter = 0U;
-    uint32_t rtc_counter = 0U;
-
-    Logger_Log(LOG_EVENT, "Application Running");
-
-    while (1)
-    {
-        if (Analog_ReadLdrs(&east_ldr_adc_config.input, &west_ldr_adc_config.input, &ldr_readings) == 0U)
-        {
-            Logger_Log(LOG_ERROR, "Failed to read LDRs");
-            _delay_ms(100U);
-            continue;
-        }
-
-        if (rtc_counter == 0U)
-        {
-            if (RTC_ReadTime(&current_time) != RTC_STATUS_OK)
-            {
-                Logger_Log(LOG_ERROR, "RTC read failed");
-                current_time.hours = 12U;
-                current_time.minutes = 0U;
-            }
-        }
-
-        readings.east = ldr_readings.east;
-        readings.west = ldr_readings.west;
-
-        current_state = Controller_Update(
-            readings.east,
-            readings.west,
-            current_time.hours,
-            current_time.minutes);
-
-        if (Controller_StateChanged())
-        {
-            APP_HandleStateChange(current_state);
-        }
-
-        current_angle = Panel_GetAngle();
-
-        if (current_state == STATE_TRACKING)
-        {
-            direction = Tracker_GetDirection(&readings, app_live_config.dead_band);
-
-            if (direction == TRACKER_DIRECTION_EAST)
-            {
-                Panel_Move(5U, 1);
-            }
-            else if (direction == TRACKER_DIRECTION_WEST)
-            {
-                Panel_Move(5U, -1);
-            }
-        }
-        else if (current_state == STATE_CLOUD_HOLD)
-        {
-            Panel_Hold();
-        }
-        else if (current_state == STATE_NIGHT_PARKING)
-        {
-            Panel_Park(app_live_config.east_park_angle);
-        }
-        else if (current_state == STATE_FAULT)
-        {
-            Panel_Hold();
-        }
-
-        if (display_counter == 0U)
-        {
-            APP_UpdateDisplay(current_state, current_angle, readings.east, readings.west);
-            APP_UpdateLeds(current_state);
-        }
-
-        display_counter++;
-        if (display_counter >= 10U)
-        {
-            display_counter = 0U;
-        }
-
-        rtc_counter++;
-        if (rtc_counter >= 10U)
-        {
-            rtc_counter = 0U;
-        }
-
-        _delay_ms(100U);
-    }
+    if ((ldr_queue == NULL) || (i2c_bus_semaphore == NULL)) return;
+    (void)xTaskCreate(APP_SensorTask, "Sensor", APP_TASK_STACK_WORDS, NULL, 3U, NULL);
+    (void)xTaskCreate(APP_ControlTask, "Control", APP_TASK_STACK_WORDS, NULL, 3U, NULL);
+    (void)xTaskCreate(APP_DisplayTask, "Display", APP_TASK_STACK_WORDS, NULL, 2U, NULL);
+    vTaskStartScheduler();
+    Logger_Log(LOG_ERROR, "Scheduler failed to start");
 }

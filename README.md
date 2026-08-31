@@ -92,6 +92,24 @@ git pull origin master
 
 ---
 
+## Pre-built Release
+
+If you only want to run the project without building the firmware yourself, download the latest release from:
+
+**[→ Latest Release](https://github.com/Sief-Ali/spst/releases/latest)**
+
+The latest release includes the compiled firmware and the SimulIDE simulation project.
+
+Available release files include:
+
+- `spst.hex` — Compiled firmware for the ATmega32
+- `spst.elf` — ELF executable containing debug/symbol information
+- `main.sim1` — SimulIDE simulation project
+
+If you want to modify the source code or build the firmware yourself, continue with the build instructions below.
+
+---
+
 ## Building the Project
 
 Configure the project:
